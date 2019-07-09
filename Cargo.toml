@@ -1,0 +1,9 @@
+[package]
+name = "rusty-mc-server"
+version = "0.0.1"
+authors = ["Daniel Prilik <danielprilik@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+serde_json = "1.0.40"
+serde = { version = "1.0.94", features = ["derive"] }
