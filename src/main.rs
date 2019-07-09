@@ -1,6 +1,7 @@
+use std::io::Read;
 use std::net::{TcpListener, TcpStream};
 
-pub mod packet;
+pub mod protocol;
 
 pub enum Mode {
     Handshake,
@@ -17,8 +18,9 @@ const MOTD: &str = "Hello from Rust!";
 
 #[derive(Debug)]
 pub enum Error {
-    BadClientPacket(packet::client::Error),
-    BadServerPacket(packet::server::Error),
+    Io(std::io::Error),
+    BadClientPacket(protocol::client::Error),
+    BadServerPacket(protocol::server::Error),
     BadSequence,
     Other(String),
 }
@@ -28,7 +30,7 @@ fn handle_client(mut stream: TcpStream) -> Result<(), Error> {
 
     println!("Got a client!");
 
-    let packet = packet::client::read(mode, &mut stream).map_err(Error::BadClientPacket)?;
+    let packet = protocol::client::read(mode, &mut stream).map_err(Error::BadClientPacket)?;
     println!("Got a packet: {:#?}", packet);
 
     let handshake = packet.unwrap_handshake().unwrap();
@@ -43,13 +45,13 @@ fn handle_client(mut stream: TcpStream) -> Result<(), Error> {
         }
     };
 
-    use packet::server::Packet as PacketS;
+    use protocol::server::Packet as PacketS;
 
     match mode {
         Mode::Status => {
-            use packet::client::read;
-            use packet::client::status::Status as StatusC;
-            use packet::server::status::Status as StatusS;
+            use protocol::client::read;
+            use protocol::client::status::Status as StatusC;
+            use protocol::server::status::Status as StatusS;
 
             // Expect a empty Request packet
             let pkt = read(mode, &mut stream).map_err(Error::BadClientPacket)?;
@@ -60,6 +62,14 @@ fn handle_client(mut stream: TcpStream) -> Result<(), Error> {
             } else {
                 return Err(Error::BadSequence);
             }
+
+            let favicon = base64::encode(
+                &std::fs::File::open("assets/favicon.png")
+                    .map_err(Error::Io)?
+                    .bytes()
+                    .collect::<Result<Vec<u8>, _>>()
+                    .map_err(Error::Io)?,
+            );
 
             // Send over server info
             let slp = json!({
@@ -87,7 +97,8 @@ fn handle_client(mut stream: TcpStream) -> Result<(), Error> {
                 },
                 "description": {
                     "text": MOTD
-                }
+                },
+                "favicon": format!("data:image/png;base64,{}", favicon)
             });
             let pkt = PacketS::Status(StatusS::Response {
                 json: slp.to_string(),
