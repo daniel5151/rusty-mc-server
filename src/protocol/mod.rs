@@ -46,7 +46,7 @@ pub trait PacketWrite {
     /// Writes a full packet to a writer, including length.
     ///
     /// **TODO:** add support for compression.
-    fn write(&self, dst: &mut Write) -> io::Result<()> {
+    fn encode(&self, dst: &mut Write) -> io::Result<()> {
         let len = self.inner_len();
         VarInt::proto_encode(&((len as i32).into()), dst)?;
         self.inner_encode(dst)
@@ -60,7 +60,7 @@ pub trait PacketRead: Sized {
     /// Reads a new packet from a reader, including length.
     ///
     /// **TODO:** add support for compression.
-    fn read<R: Read>(src: &mut R) -> io::Result<Self> {
+    fn decode<R: Read>(src: &mut R) -> io::Result<Self> {
         let proto_len = VarInt::proto_decode(src)?;
         Self::inner_decode(&mut src.take(Into::<i32>::into(proto_len) as u64))
     }
@@ -68,35 +68,38 @@ pub trait PacketRead: Sized {
 
 macro_rules! packets {
     ($($id:expr => $name:ident { $($packet:tt)* })*) => {
-        $(proto_struct!{ $name { $($packet)* } })*
+        pub mod packets {
+            use super::*;
+            $(proto_struct!{ $name { $($packet)* } })*
+
+            $(impl PacketWrite for $name {
+                fn inner_len(&self) -> usize {
+                    let id_len = VarInt::proto_len(&$id.into());
+                    id_len + Self::proto_len(self)
+                }
+
+                fn inner_encode(&self, dst: &mut Write) -> io::Result<()> {
+                    VarInt::proto_encode(&$id.into(), dst)?;
+                    Self::proto_encode(self, dst)
+                }
+            })*
+        }
 
         #[derive(Debug)]
         pub enum Packet {
-            $($name($name)),*
+            $($name(packets::$name)),*
         }
 
         impl PacketRead for Packet {
             fn inner_decode(src: &mut Read) -> io::Result<Self> {
                 match VarInt::proto_decode(src)?.into() {
                     $(
-                        $id => $name::proto_decode(src).map(Packet::$name),
+                        $id => packets::$name::proto_decode(src).map(Packet::$name),
                     )*
                     _ => Err(io::Error::new(io::ErrorKind::InvalidInput, "unknown packet id"))
                 }
             }
         }
-
-        $(impl PacketWrite for $name {
-            fn inner_len(&self) -> usize {
-                let id_len = VarInt::proto_len(&$id.into());
-                id_len + <Self as WireProtocol>::proto_len(self)
-            }
-
-            fn inner_encode(&self, dst: &mut Write) -> io::Result<()> {
-                VarInt::proto_encode(&$id.into(), dst)?;
-                <Self as WireProtocol>::proto_encode(self, dst)
-            }
-        })*
     }
 }
 
@@ -110,17 +113,17 @@ macro_rules! proto_struct {
 
         impl WireProtocol for $name {
             fn proto_len(&self) -> usize {
-                0 $(+ <$fty as WireProtocol>::proto_len(&self.$fname))*
+                0 $(+ <$fty>::proto_len(&self.$fname))*
             }
 
             fn proto_encode(&self, dst: &mut Write) -> io::Result<()> {
-                $(<$fty as WireProtocol>::proto_encode(&self.$fname, dst)?;)*
+                $(<$fty>::proto_encode(&self.$fname, dst)?;)*
                 Ok(())
             }
 
             fn proto_decode(src: &mut Read) -> io::Result<$name> {
                 Ok($name {
-                    $($fname: <$fty as WireProtocol>::proto_decode(src)?),*
+                    $($fname: <$fty>::proto_decode(src)?),*
                 })
             }
         }
@@ -133,17 +136,17 @@ macro_rules! proto_struct {
         impl WireProtocol for $name {
             fn proto_len(&self) -> usize { 0 }
 
-            fn proto_encode(&self, _: &mut Write) -> io::Result<()> {
+            fn proto_encode(&self, _dst: &mut Write) -> io::Result<()> {
                 Ok(())
             }
 
-            fn proto_decode(_: &mut Read) -> io::Result<$name> {
+            fn proto_decode(_src: &mut Read) -> io::Result<$name> {
                 Ok($name)
             }
         }
     };
-    // Custom encode/decode structs.
-    ($name:ident { $($fname:ident: $fty:ty),+; $impl_struct:item }) => {
+    // encode/decode implementation can be overwritten manually
+    ($name:ident { $($fname:ident: $fty:ty),+ where $impl_struct:item }) => {
         #[derive(Debug)]
         pub struct $name {
             $(pub $fname: $fty),*
@@ -153,6 +156,6 @@ macro_rules! proto_struct {
     }
 }
 
-// must be at the bottom, since they use macros above
+// must be at the bottom, since they make use of the macros above
 pub mod handshake;
 pub mod status;

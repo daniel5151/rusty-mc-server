@@ -12,7 +12,6 @@ pub enum Error {
     BadClientPacket(std::io::Error),
     BadServerPacket(std::io::Error),
     BadSequence,
-    Other(String),
 }
 
 fn handle_client(mut stream: TcpStream) -> Result<(), Error> {
@@ -20,7 +19,7 @@ fn handle_client(mut stream: TcpStream) -> Result<(), Error> {
 
     use protocol::handshake::{NextState, Packet};
 
-    let packet = Packet::read(&mut stream).map_err(Error::BadClientPacket)?;
+    let packet = Packet::decode(&mut stream).map_err(Error::BadClientPacket)?;
     println!("Got handshake packet: {:#?}", packet);
 
     let handshake = match packet {

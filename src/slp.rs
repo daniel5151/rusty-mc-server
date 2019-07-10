@@ -16,7 +16,7 @@ pub fn handle_slp(mut stream: TcpStream) -> Result<(), Error> {
     use protocol::status::server;
 
     // Expect a empty Request packet
-    let packet = client::Packet::read(&mut stream).map_err(Error::BadClientPacket)?;
+    let packet = client::Packet::decode(&mut stream).map_err(Error::BadClientPacket)?;
     println!("Got a status packet: {:#?}", packet);
     match packet {
         client::Packet::Request(..) => (),
@@ -63,16 +63,16 @@ pub fn handle_slp(mut stream: TcpStream) -> Result<(), Error> {
     });
 
     // Send off server info
-    let response = server::Response {
+    let response = server::packets::Response {
         json: slp.to_string(),
     };
     println!("Sending a packet: {:#?}", response);
     response
-        .write(&mut stream)
+        .encode(&mut stream)
         .map_err(Error::BadServerPacket)?;
 
     // Expect a ping packet
-    let packet = client::Packet::read(&mut stream).map_err(Error::BadClientPacket)?;
+    let packet = client::Packet::decode(&mut stream).map_err(Error::BadClientPacket)?;
     println!("Got a status packet: {:#?}", packet);
     let ping = match packet {
         client::Packet::Ping(ping) => ping,
@@ -80,11 +80,11 @@ pub fn handle_slp(mut stream: TcpStream) -> Result<(), Error> {
     };
 
     // send pong back with same payload
-    let pong = server::Pong {
+    let pong = server::packets::Pong {
         payload: ping.payload,
     };
     println!("Sending a packet: {:#?}", pong);
-    pong.write(&mut stream).map_err(Error::BadServerPacket)?;
+    pong.encode(&mut stream).map_err(Error::BadServerPacket)?;
 
     Ok(())
 }

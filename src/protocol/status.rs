@@ -7,10 +7,10 @@ pub use super::{PacketRead, PacketWrite, WireProtocol};
 pub mod server {
     use super::*;
     packets! {
-        0x00 => Response {
-            // TODO: should be something more robust than just a string JSON
-            json: String
-        }
+        // TODO: use a strongly typed datatype for JSON
+        // i.e: use a custom struct that implements the WireProtocol, where it
+        // de/serializes to JSON
+        0x00 => Response { json: String }
         0x01 => Pong { payload: i64 }
     }
 }
