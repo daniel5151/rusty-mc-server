@@ -1,58 +1,65 @@
+use std::io;
+use std::io::prelude::*;
+
+use crate::protocol::WireProtocol;
+
 #[derive(Debug, Clone, Copy)]
 pub struct VarInt(i32);
 
-#[derive(Debug)]
-pub enum Error {
-    BufferTooSmall,
-    TooLong,
-    Io(std::io::Error),
-}
-
-impl VarInt {
-    pub fn read<T: std::io::Read>(buf: &mut T) -> Result<VarInt, Error> {
-        let mut num_read = 0;
-        let mut result: i32 = 0;
-
+impl WireProtocol for VarInt {
+    fn proto_len(&self) -> usize {
+        let mut val = self.0;
+        let mut len = 0;
         loop {
-            let mut b = [0; 1];
-            let n = buf.read(&mut b).map_err(|e| Error::Io(e))?;
-            if n == 0 {
-                return Err(Error::BufferTooSmall);
-            }
-
-            let b = b[0];
-
-            let val: i32 = (b & 0b01111111) as i32;
-            result |= val << (7 * num_read);
-            num_read += 1;
-            if num_read > 5 {
-                return Err(Error::TooLong);
-            }
-
-            if (b & 0b10000000) == 0 {
-                return Ok(result.into());
+            len += 1;
+            val >>= 7;
+            if val == 0 {
+                return len;
             }
         }
     }
 
-    pub fn write<T: std::io::Write>(self, buf: &mut T) -> Result<usize, Error> {
-        let mut n_written = 0;
+    fn proto_encode(&self, dst: &mut Write) -> std::io::Result<()> {
         let mut val = self.0;
-        loop {
+        for _ in 0..5 {
             let mut tmp: u8 = (val & 0b01111111) as u8;
             val >>= 7;
             if val != 0 {
                 tmp |= 0b10000000;
             }
-            let n = buf.write(&[tmp]).map_err(|e| Error::Io(e))?;
-            n_written += n;
-            if n == 0 {
-                return Err(Error::BufferTooSmall);
-            }
+            dst.write(&[tmp])?;
             if val == 0 {
-                return Ok(n_written);
+                return Ok(());
             }
         }
+
+        Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "varint too long",
+        ))
+    }
+
+    fn proto_decode(src: &mut Read) -> std::io::Result<Self> {
+        let mut result: i32 = 0;
+
+        for n in 0..5 {
+            let mut b = [0; 1];
+            src.read(&mut b)?;
+
+            let b = b[0];
+
+            let val: i32 = (b & 0b01111111) as i32;
+            result |= val << (7 * n);
+
+            if (b & 0b10000000) == 0 {
+                return Ok(result.into());
+            }
+        }
+
+        Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "varint too long",
+        ))
     }
 }
 
