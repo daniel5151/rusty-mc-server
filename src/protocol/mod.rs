@@ -34,19 +34,19 @@ use types::VarInt;
 /// A trait used for data which can be encoded/decoded as is.
 pub trait WireProtocol: Sized {
     fn proto_len(&self) -> usize;
-    fn proto_encode(&self, dst: &mut Write) -> io::Result<()>;
-    fn proto_decode(src: &mut Read) -> io::Result<Self>;
+    fn proto_encode<W: Write>(&self, dst: &mut W) -> io::Result<()>;
+    fn proto_decode<R: Read>(src: &mut R) -> io::Result<Self>;
 }
 
 /// A trait for encoding the body of a single packet type.
 pub trait PacketWrite {
     fn inner_len(&self) -> usize;
-    fn inner_encode(&self, dst: &mut Write) -> io::Result<()>;
+    fn inner_encode<W: Write>(&self, dst: &mut W) -> io::Result<()>;
 
     /// Writes a full packet to a writer, including length.
     ///
     /// **TODO:** add support for compression.
-    fn encode(&self, dst: &mut Write) -> io::Result<()> {
+    fn encode<W: Write>(&self, dst: &mut W) -> io::Result<()> {
         let len = self.inner_len();
         VarInt::proto_encode(&((len as i32).into()), dst)?;
         self.inner_encode(dst)
@@ -55,7 +55,7 @@ pub trait PacketWrite {
 
 /// A trait for decoding any of the packet types in one ID namespace.
 pub trait PacketRead: Sized {
-    fn inner_decode(src: &mut Read) -> io::Result<Self>;
+    fn inner_decode<R: Read>(src: &mut R) -> io::Result<Self>;
 
     /// Reads a new packet from a reader, including length.
     ///
@@ -78,7 +78,7 @@ macro_rules! packets {
                     id_len + Self::proto_len(self)
                 }
 
-                fn inner_encode(&self, dst: &mut Write) -> io::Result<()> {
+                fn inner_encode<W: Write>(&self, dst: &mut W) -> io::Result<()> {
                     VarInt::proto_encode(&$id.into(), dst)?;
                     Self::proto_encode(self, dst)
                 }
@@ -91,7 +91,7 @@ macro_rules! packets {
         }
 
         impl PacketRead for Packet {
-            fn inner_decode(src: &mut Read) -> io::Result<Self> {
+            fn inner_decode<R: Read>(src: &mut R) -> io::Result<Self> {
                 match VarInt::proto_decode(src)?.into() {
                     $(
                         $id => packets::$name::proto_decode(src).map(Packet::$name),
@@ -116,12 +116,12 @@ macro_rules! proto_struct {
                 0 $(+ <$fty>::proto_len(&self.$fname))*
             }
 
-            fn proto_encode(&self, dst: &mut Write) -> io::Result<()> {
+            fn proto_encode<W: Write>(&self, dst: &mut W) -> io::Result<()> {
                 $(<$fty>::proto_encode(&self.$fname, dst)?;)*
                 Ok(())
             }
 
-            fn proto_decode(src: &mut Read) -> io::Result<$name> {
+            fn proto_decode<R: Read>(src: &mut R) -> io::Result<$name> {
                 Ok($name {
                     $($fname: <$fty>::proto_decode(src)?),*
                 })
@@ -136,11 +136,11 @@ macro_rules! proto_struct {
         impl WireProtocol for $name {
             fn proto_len(&self) -> usize { 0 }
 
-            fn proto_encode(&self, _dst: &mut Write) -> io::Result<()> {
+            fn proto_encode<W: Write>(&self, _dst: &mut W) -> io::Result<()> {
                 Ok(())
             }
 
-            fn proto_decode(_src: &mut Read) -> io::Result<$name> {
+            fn proto_decode<R: Read>(_src: &mut R) -> io::Result<$name> {
                 Ok($name)
             }
         }

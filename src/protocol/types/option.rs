@@ -35,7 +35,7 @@ impl<T: WireProtocol> WireProtocol for Option<T> {
         }
     }
 
-    fn proto_encode(&self, dst: &mut Write) -> io::Result<()> {
+    fn proto_encode<W: Write>(&self, dst: &mut W) -> io::Result<()> {
         match self {
             Some(inner) => {
                 bool::proto_encode(&true, dst)?;
@@ -48,7 +48,7 @@ impl<T: WireProtocol> WireProtocol for Option<T> {
         Ok(())
     }
 
-    fn proto_decode(src: &mut Read) -> io::Result<Option<T>> {
+    fn proto_decode<R: Read>(src: &mut R) -> io::Result<Option<T>> {
         if bool::proto_decode(src)? {
             Ok(Some(T::proto_decode(src)?))
         } else {

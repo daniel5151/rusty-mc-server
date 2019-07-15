@@ -10,13 +10,13 @@ impl WireProtocol for String {
         VarInt::from(self.len() as i32).proto_len() + self.len()
     }
 
-    fn proto_encode(&self, dst: &mut Write) -> io::Result<()> {
+    fn proto_encode<W: Write>(&self, dst: &mut W) -> io::Result<()> {
         VarInt::from(self.len() as i32).proto_encode(dst)?;
         dst.write(self.as_ref())?;
         Ok(())
     }
 
-    fn proto_decode(src: &mut Read) -> io::Result<Self> {
+    fn proto_decode<R: Read>(src: &mut R) -> io::Result<Self> {
         let len: i32 = VarInt::proto_decode(src)?.into();
 
         let mut str_bytes: Vec<u8> = vec![0; len as usize];

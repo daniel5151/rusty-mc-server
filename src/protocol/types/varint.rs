@@ -19,7 +19,7 @@ impl WireProtocol for VarInt {
         }
     }
 
-    fn proto_encode(&self, dst: &mut Write) -> std::io::Result<()> {
+    fn proto_encode<W: Write>(&self, dst: &mut W) -> std::io::Result<()> {
         let mut val = self.0;
         for _ in 0..5 {
             let mut tmp: u8 = (val & 0b01111111) as u8;
@@ -39,7 +39,7 @@ impl WireProtocol for VarInt {
         ))
     }
 
-    fn proto_decode(src: &mut Read) -> std::io::Result<Self> {
+    fn proto_decode<R: Read>(src: &mut R) -> std::io::Result<Self> {
         let mut result: i32 = 0;
 
         for n in 0..5 {

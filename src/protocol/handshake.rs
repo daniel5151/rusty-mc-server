@@ -24,7 +24,7 @@ impl WireProtocol for NextState {
         1
     }
 
-    fn proto_encode(&self, dst: &mut Write) -> io::Result<()> {
+    fn proto_encode<W: Write>(&self, dst: &mut W) -> io::Result<()> {
         let i = match self {
             NextState::Status => 1,
             NextState::Login => 2,
@@ -32,7 +32,7 @@ impl WireProtocol for NextState {
         VarInt::proto_encode(&i.into(), dst)
     }
 
-    fn proto_decode(src: &mut Read) -> io::Result<Self> {
+    fn proto_decode<R: Read>(src: &mut R) -> io::Result<Self> {
         match VarInt::proto_decode(src)?.into() {
             1 => Ok(NextState::Status),
             2 => Ok(NextState::Login),

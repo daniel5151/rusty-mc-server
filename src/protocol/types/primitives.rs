@@ -34,12 +34,12 @@ macro_rules! impl_WireProtocol {
                 std::mem::size_of::<$type>()
             }
 
-            fn proto_encode(&self, dst: &mut Write) -> io::Result<()> {
+            fn proto_encode<W: Write>(&self, dst: &mut W) -> io::Result<()> {
                 dst.write(&<$type>::to_le_bytes(*self))?;
                 Ok(())
             }
 
-            fn proto_decode(src: &mut Read) -> io::Result<$type> {
+            fn proto_decode<R: Read>(src: &mut R) -> io::Result<$type> {
                 let mut buf = <$type>::to_le_bytes(0);
                 src.read(&mut buf)?;
                 Ok(<$type>::from_le_bytes(buf))
@@ -65,11 +65,11 @@ macro_rules! impl_WireProtocolFloat {
                 std::mem::size_of::<$type>()
             }
 
-            fn proto_encode(&self, dst: &mut Write) -> io::Result<()> {
+            fn proto_encode<W: Write>(&self, dst: &mut W) -> io::Result<()> {
                 <$equiv>::proto_encode(&self.to_bits(), dst)
             }
 
-            fn proto_decode(src: &mut Read) -> io::Result<$type> {
+            fn proto_decode<R: Read>(src: &mut R) -> io::Result<$type> {
                 Ok(<$type>::from_bits(<$equiv>::proto_decode(src)?))
             }
         }
@@ -84,12 +84,12 @@ impl WireProtocol for bool {
         1
     }
 
-    fn proto_encode(&self, dst: &mut Write) -> io::Result<()> {
+    fn proto_encode<W: Write>(&self, dst: &mut W) -> io::Result<()> {
         dst.write(if *self { &[1] } else { &[0] })?;
         Ok(())
     }
 
-    fn proto_decode(src: &mut Read) -> io::Result<bool> {
+    fn proto_decode<R: Read>(src: &mut R) -> io::Result<bool> {
         let mut buf = [0; 1];
         src.read(&mut buf)?;
         let value = buf[0];
