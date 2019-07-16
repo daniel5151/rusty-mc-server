@@ -1,8 +1,10 @@
 use std::net::{TcpListener, TcpStream};
 
-pub mod protocol;
+#[macro_use]
+mod util;
+mod setup;
 
-mod slp;
+pub mod protocol;
 
 use crate::protocol::PacketRead;
 
@@ -21,7 +23,6 @@ fn handle_client(mut stream: TcpStream) -> Result<(), Error> {
 
     let packet = Packet::decode(&mut stream).map_err(Error::BadClientPacket)?;
     println!("Got handshake packet: {:#?}", packet);
-
     let handshake = match packet {
         Packet::Handshake(handshake) => handshake,
     };
@@ -29,9 +30,11 @@ fn handle_client(mut stream: TcpStream) -> Result<(), Error> {
     // TODO: use some of the other handshake params?
 
     match handshake.next_state {
-        NextState::Status => slp::handle_slp(stream),
+        NextState::Status => setup::slp::handle_slp(stream),
         NextState::Login => {
-            eprintln!("Login not implemented yet!");
+            setup::login::handle_login(stream)?;
+            // load player into world
+            println!("Login was successful!");
             unimplemented!()
         }
     }
@@ -43,7 +46,7 @@ fn main() -> std::io::Result<()> {
     // accept connections and process them serially
     for stream in listener.incoming() {
         if let Err(e) = handle_client(stream?) {
-            eprintln!("{:?}", e);
+            eprintln!("Error: {:?}", e);
         }
     }
 

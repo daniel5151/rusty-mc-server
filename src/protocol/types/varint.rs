@@ -8,7 +8,7 @@ pub struct VarInt(i32);
 
 impl WireProtocol for VarInt {
     fn proto_len(&self) -> usize {
-        let mut val = self.0;
+        let mut val = self.0 as u32;
         let mut len = 0;
         loop {
             len += 1;
@@ -20,7 +20,7 @@ impl WireProtocol for VarInt {
     }
 
     fn proto_encode<W: Write>(&self, dst: &mut W) -> std::io::Result<()> {
-        let mut val = self.0;
+        let mut val = self.0 as u32;
         for _ in 0..5 {
             let mut tmp: u8 = (val & 0b01111111) as u8;
             val >>= 7;

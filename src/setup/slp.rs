@@ -1,4 +1,4 @@
-use std::io::prelude::*;
+use std::io::Read; // for .bytes()
 use std::net::TcpStream;
 
 use serde_json::json;

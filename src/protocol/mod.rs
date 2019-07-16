@@ -68,6 +68,10 @@ pub trait PacketRead: Sized {
 
 macro_rules! packets {
     ($($id:expr => $name:ident { $($packet:tt)* })*) => {
+        pub use std::io;
+        pub use std::io::prelude::*;
+        pub use crate::protocol::{PacketRead, PacketWrite, WireProtocol};
+
         pub mod packets {
             use super::*;
             $(proto_struct!{ $name { $($packet)* } })*
@@ -113,11 +117,11 @@ macro_rules! proto_struct {
 
         impl WireProtocol for $name {
             fn proto_len(&self) -> usize {
-                0 $(+ <$fty>::proto_len(&self.$fname))*
+                0 $(+ self.$fname.proto_len())*
             }
 
             fn proto_encode<W: Write>(&self, dst: &mut W) -> io::Result<()> {
-                $(<$fty>::proto_encode(&self.$fname, dst)?;)*
+                $(self.$fname.proto_encode(dst)?;)*
                 Ok(())
             }
 
@@ -157,5 +161,5 @@ macro_rules! proto_struct {
 }
 
 // must be at the bottom, since they make use of the macros above
-pub mod handshake;
-pub mod status;
+mod states;
+pub use states::*;

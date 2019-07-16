@@ -1,8 +1,4 @@
-pub use std::io;
-pub use std::io::prelude::*;
-
-pub use super::types::VarInt;
-pub use super::{PacketRead, PacketWrite, WireProtocol};
+pub use crate::protocol::types::VarInt;
 
 pub mod server {
     use super::*;
@@ -14,6 +10,7 @@ pub mod server {
         0x01 => Pong { payload: i64 }
     }
 }
+
 pub mod client {
     use super::*;
     packets! {

@@ -1,8 +1,4 @@
-pub use std::io;
-pub use std::io::prelude::*;
-
-pub use super::types::VarInt;
-pub use super::{PacketRead, PacketWrite, WireProtocol};
+pub use crate::protocol::types::VarInt;
 
 packets! {
     0x00 => Handshake {
