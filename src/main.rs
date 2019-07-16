@@ -2,6 +2,8 @@ use std::net::{TcpListener, TcpStream};
 
 #[macro_use]
 mod util;
+
+mod play_stub;
 mod setup;
 
 pub mod protocol;
@@ -32,10 +34,9 @@ fn handle_client(mut stream: TcpStream) -> Result<(), Error> {
     match handshake.next_state {
         NextState::Status => setup::slp::handle_slp(stream),
         NextState::Login => {
-            setup::login::handle_login(stream)?;
+            setup::login::handle_login(&mut stream)?;
             // load player into world
-            println!("Login was successful!");
-            unimplemented!()
+            play_stub::handle_play(stream)
         }
     }
 }

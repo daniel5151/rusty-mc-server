@@ -7,18 +7,17 @@ use crate::protocol::{
 use crate::util::*;
 use crate::Error;
 
-pub fn handle_login(mut stream: TcpStream) -> Result<(), Error> {
+pub fn handle_login(stream: &mut TcpStream) -> Result<(), Error> {
     use protocol::login::client;
     use protocol::login::server;
 
-    let client::packets::LoginStart { name: username } =
-        expect_pkt!(&mut stream, login, LoginStart);
+    let client::packets::LoginStart { name: username } = expect_pkt!(stream, login, LoginStart);
 
     // Skip setting up encryption (for now?)
     // Disable compression (for now)
 
     send_pkt(
-        &mut stream,
+        stream,
         server::packets::SetCompression {
             threshold: VarInt::from(-1),
         },
@@ -28,7 +27,7 @@ pub fn handle_login(mut stream: TcpStream) -> Result<(), Error> {
     // TODO: actually associate username with UUID instead of just generating a
     // new one each time
     send_pkt(
-        &mut stream,
+        stream,
         server::packets::LoginSuccess {
             uuid: UuidString::from(uuid::Uuid::new_v4()),
             username,

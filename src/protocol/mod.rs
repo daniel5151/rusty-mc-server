@@ -67,6 +67,7 @@ pub trait PacketRead: Sized {
 }
 
 macro_rules! packets {
+    () => {};
     ($($id:expr => $name:ident { $($packet:tt)* })*) => {
         pub use std::io;
         pub use std::io::prelude::*;

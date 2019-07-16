@@ -31,12 +31,12 @@ pub struct UuidString(Uuid);
 
 impl WireProtocol for UuidString {
     fn proto_len(&self) -> usize {
-        // TODO: This could be hardcoded, since the strings should have constant length
-        self.0.to_string().len()
+        // self.0.to_string().proto_len()
+        37 // should always be 37
     }
 
     fn proto_encode<W: Write>(&self, dst: &mut W) -> std::io::Result<()> {
-        dst.write(self.0.to_string().as_bytes())?;
+        self.0.to_string().proto_encode(dst)?;
         Ok(())
     }
 
